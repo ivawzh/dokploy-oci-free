@@ -1,16 +1,3 @@
-**/.terraform
-# .tfstate files
-*.tfstate
-*.tfstate.*
-*.plan
-.DS_Store
-.history
-.vscode/
-.env
-.ssh
-**/node_modules/
-.terraform.lock.hcl
-
 # Based on https://raw.githubusercontent.com/github/gitignore/main/Node.gitignore
 
 # Logs

@@ -1,0 +1,3 @@
+name: dokploy-oci-free
+runtime: nodejs
+description: Dokploy OCI Free Tier Infrastructure
