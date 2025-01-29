@@ -1,6 +1,76 @@
-# Dokploy Deployment on OCI Free Tier using Pulumi
+# OCI Free Tier infra with self-hosted Dokploy Manager
 
-This Pulumi project deploys a Dokploy instance along with worker nodes in Oracle Cloud Infrastructure (OCI) Free Tier. **Dokploy** is an open-source platform to manage your app deployments and server configurations.
+This Pulumi project deploys a self-hosted Dokploy manager instance (including the UI) along with worker nodes on Oracle Cloud Infrastructure (OCI) Free Tier. **Dokploy** is an open-source platform to manage your app deployments and server configurations usually on VPS.
+
+## Architecture Overview
+
+The stack deploys a complete Dokploy environment consisting of:
+
+- A main manager instance running the Dokploy UI and manager service
+- Optional worker instances (default: 1) for running your workloads
+- A secure network infrastructure with proper isolation and access controls
+
+### OCI Components
+
+1. **Virtual Cloud Network (VCN)**:
+   - A dedicated network space with CIDR block `10.0.0.0/16`
+   - Provides network isolation for your Dokploy infrastructure
+   - Includes DNS label for internal name resolution
+
+2. **Internet Gateway**:
+   - Enables outbound internet access for instances
+   - Allows inbound access to Dokploy UI and services
+   - Connected to VCN via route table rules
+
+3. **Subnet**:
+   - CIDR block: `10.0.0.0/24`
+   - Houses both manager and worker instances
+   - Public subnet with auto-assigned public IPs
+
+4. **Security List**:
+   - Controls inbound/outbound traffic
+   - Allows essential ports:
+     - 3000: Dokploy UI access
+     - 22: SSH access
+     - 80/443: HTTP(S) traffic
+     - 81/444: Traefik proxy ports
+     - 2376/2377: Docker Swarm management
+     - 7946, 4789: Docker Swarm overlay network
+   - Permits all outbound traffic
+
+5. **Compute Instances**:
+   - **Manager Instance**:
+     - Runs Dokploy UI and manager services
+     - Default shape: VM.Standard.A1.Flex (ARM-based)
+     - 6GB RAM, 1 OCPU (configurable)
+     - Oracle Linux with cloud-init setup
+
+   - **Worker Instances**:
+     - Run your workloads and deployments
+     - Same instance shape as manager
+     - Configurable count (default: 1)
+     - Automatically join Dokploy cluster
+
+### How Dokploy Works
+
+1. **Manager Node**:
+   - Hosts the web UI on port 3000
+   - Runs the Dokploy manager service
+   - Manages the worker cluster
+   - Handles deployment orchestration
+   - Stores configuration and state
+
+2. **Worker Nodes**:
+   - Execute actual workloads
+   - Run containerized applications
+   - Handle application scaling
+   - Report status back to manager
+
+3. **Networking Flow**:
+   - External users access Dokploy UI via manager's public IP
+   - Manager communicates with workers via internal VCN network
+   - Workers can pull from internet through Internet Gateway
+   - Inter-node communication uses Docker Swarm overlay network
 
 ## Prerequisites
 
@@ -23,7 +93,7 @@ Before you begin, ensure you have the following:
 
 ## Project Structure
 
-```
+```sh
 pulumi/
 ├── index.ts              # Main Pulumi program
 ├── package.json          # Node.js dependencies
@@ -35,6 +105,7 @@ pulumi/
 ## Getting Started
 
 1. **Clone and Setup**:
+
    ```bash
    # Clone the repository
    git clone https://github.com/your-repo/dokploy-oci-free
@@ -45,9 +116,10 @@ pulumi/
    ```
 
 2. **Configure Pulumi Stack**:
+
    ```bash
    # Create a new stack
-   pulumi stack init dev
+   pulumi stack init production
 
    # Configure required variables
    pulumi config set oci:tenancyOcid <your-tenancy-ocid>
@@ -71,12 +143,13 @@ pulumi/
    ```
 
 3. **Preview and Deploy**:
+
    ```bash
    # Preview the changes
-   npm run preview
+   bun preview
 
    # Deploy the stack
-   npm run deploy
+   bun deploy
    ```
 
 4. **Access Your Deployment**:
@@ -113,11 +186,46 @@ pulumi/
    - Follow the [Dokploy Cluster Documentation](https://docs.dokploy.com/en/docs/core/server/cluster)
    - Add worker nodes to your cluster using the provided IPs
 
+## Security Considerations
+
+1. **Network Security**:
+   - All instances use public IPs for easy access
+   - Security lists restrict access to necessary ports only
+   - Consider using Bastion host for production
+   - Enable only required ports for your use case
+
+2. **Instance Security**:
+   - SSH key-based authentication only
+   - Regular system updates via cloud-init
+   - Minimal required services enabled
+   - Cloud Guard workload protection enabled
+
+3. **Application Security**:
+   - Dokploy UI protected by authentication
+   - Worker nodes accessible only via manager
+   - HTTPS recommended for production use
+   - Regular security updates recommended
+
+## Monitoring and Maintenance
+
+1. **OCI Monitoring**:
+   - Instance monitoring enabled by default
+   - Custom logs monitoring available
+   - Use OCI Console for resource metrics
+   - Set up alarms for critical metrics
+
+2. **Dokploy Monitoring**:
+   - Built-in dashboard for deployment status
+   - Worker node health monitoring
+   - Deployment logs and history
+   - Resource usage tracking
+
 ## Cleanup
 
 To destroy the infrastructure:
+
 ```bash
-bun run destroy
+bun destroy
 ```
 
 ## Troubleshooting
@@ -137,8 +245,74 @@ bun run destroy
    - Verify cloud-init script execution
    - Check if all required ports are open in security lists
 
+4. **Network Connectivity**:
+   - Verify security list rules
+   - Check route table configuration
+   - Ensure internet gateway is properly attached
+   - Test internal network connectivity between nodes
+
 ## Additional Resources
 
 - [Pulumi OCI Provider Documentation](https://www.pulumi.com/registry/packages/oci/)
 - [OCI Free Tier Documentation](https://www.oracle.com/cloud/free/)
 - [Dokploy Documentation](https://docs.dokploy.com/)
+- [Docker Swarm Documentation](https://docs.docker.com/engine/swarm/)
+
+## OCI Free Tier Resources
+
+This project leverages Oracle Cloud Infrastructure's Always Free resources, which include:
+
+### Compute Resources
+
+- **Arm-based Ampere A1**:
+  - 3,000 OCPU hours and 18,000 GB hours per month
+  - Up to 4 VMs sharing 24 GB memory
+  - Perfect for running Dokploy manager and workers
+- **AMD-based Compute VMs**:
+  - 2 VMs with 1/8 OCPU and 1 GB memory each
+  - Alternative option for smaller workloads
+
+### Networking
+
+- **Virtual Cloud Networks (VCN)**:
+  - 2 VCNs with IPv4 and IPv6 support
+  - Sufficient for creating isolated networks
+- **Load Balancer**:
+  - 1 instance with 10 Mbps bandwidth
+  - Useful for distributing traffic across workers
+- **Outbound Data Transfer**:
+  - Up to 10 TB per month
+  - Generous allowance for container image pulls and application traffic
+
+### Storage
+
+- **Block Volume Storage**:
+  - Up to 200 GB total across 2 block volumes
+  - 5 volume backups included
+  - Suitable for persistent data storage
+- **Object Storage**:
+  - 20 GB total across standard, infrequent, and archive tiers
+  - 50,000 API requests per month
+  - Useful for storing deployment artifacts
+
+### Security
+
+- **Bastion Service**:
+  - Up to 5 OCI Bastions
+  - Secure SSH access to private resources
+- **Vault**:
+  - 20 key versions for encryption
+  - 150 secrets storage
+  - Perfect for storing sensitive configuration
+
+### Monitoring and Logging
+
+- **Logging**:
+  - Up to 10 GB per month
+  - Useful for troubleshooting and audit
+- **Monitoring**:
+  - 500 million ingestion datapoints
+  - 1 billion retrieval datapoints
+  - Essential for system health monitoring
+
+These resources are more than sufficient for running a production-grade Dokploy environment with multiple worker nodes.

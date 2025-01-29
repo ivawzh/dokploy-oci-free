@@ -5,7 +5,8 @@
   "scripts": {
     "preview": "pulumi preview",
     "deploy": "pulumi up",
-    "destroy": "pulumi destroy"
+    "destroy": "pulumi destroy",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@pulumi/pulumi": "^3.147.0",

@@ -174,7 +174,7 @@ const mainInstance = new oci.core.Instance('dokployMain', {
   shape: instanceConfig.shape,
   metadata: {
     sshAuthorizedKeys,
-    userData: Buffer.from(fs.readFileSync('./bin/dokploy-main.sh').toString()).toString('base64')
+    userData: Buffer.from(fs.readFileSync('../bin/dokploy-main.sh').toString()).toString('base64')
   },
   createVnicDetails: {
     displayName: `dokploy-main-${resourceCode}`,
@@ -215,7 +215,7 @@ const workerInstances = Array.from({ length: numWorkerInstances }).map((_, index
     shape: instanceConfig.shape,
     metadata: {
       sshAuthorizedKeys,
-      userData: Buffer.from(fs.readFileSync('./bin/dokploy-worker.sh').toString()).toString('base64')
+      userData: Buffer.from(fs.readFileSync('../bin/dokploy-worker.sh').toString()).toString('base64')
     },
     createVnicDetails: {
       displayName: `dokploy-worker-${index + 1}-${resourceCode}`,
